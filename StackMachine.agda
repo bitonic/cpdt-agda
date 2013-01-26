@@ -59,21 +59,23 @@ module Untyped where
                     progDenote (compile e ++ p) s ≡ progDenote p (expDenote e ∷ s)
   compile-correct′ (const n) _ _  = refl
   compile-correct′ (binop op e₁ e₂) p s = begin
-      progDenote ((compile e₂ ++ (compile e₁ ++ [ iBinop op ])) ++ p) s
-          ≡⟨ cong (λ p → progDenote p s)
-                  (assoc (compile e₂) (compile e₁ ++ [ iBinop op ]) p) ⟩
-      progDenote (compile e₂ ++ (compile e₁ ++ [ iBinop op ]) ++ p) s
+      progDenote ((ce₂ ++ (ce₁ ++ [iop])) ++ p) s
+          ≡⟨ cong (λ p → progDenote p s) (assoc ce₂ (ce₁ ++ [iop]) p) ⟩
+      progDenote (ce₂ ++ (ce₁ ++ [iop]) ++ p) s
           ≡⟨ cong (λ p → progDenote p s) 
-                  (cong (λ l → (compile e₂ ++ l))
-                        (assoc (compile e₁) [ iBinop op ] p)) ⟩
-      progDenote (compile e₂ ++ compile e₁ ++ [ iBinop op ] ++ p) s
-          ≡⟨ compile-correct′ e₂ (compile e₁ ++ [ iBinop op ] ++ p) s ⟩
-      progDenote (compile e₁ ++ [ iBinop op ] ++ p) (expDenote e₂ ∷ s)
-          ≡⟨ compile-correct′ e₁ ([ iBinop op ] ++ p) (expDenote e₂ ∷ s) ⟩
-      progDenote p (binopDenote op (expDenote e₁) (expDenote e₂) ∷ s)
+                  (cong (λ l → (ce₂ ++ l)) (assoc ce₁ [iop] p)) ⟩
+      progDenote (ce₂ ++ ce₁ ++ [iop] ++ p) s
+          ≡⟨ compile-correct′ e₂ (ce₁ ++ [iop] ++ p) s ⟩
+      progDenote (ce₁ ++ [iop] ++ p) (ee₂ ∷ s)
+          ≡⟨ compile-correct′ e₁ ([iop] ++ p) (ee₂ ∷ s) ⟩
+      progDenote p (binopDenote op (expDenote e₁) ee₂ ∷ s)
           ∎
     where
       open Monoid (List.monoid Instr)
+      ce₁   = compile e₁
+      ce₂   = compile e₂
+      ee₂   = expDenote e₂
+      [iop] = [ iBinop op ]
   
   compile-correct : ∀ e → progDenote (compile e) [] ≡ just [ expDenote e ]
   compile-correct e = begin
@@ -151,8 +153,8 @@ module Typed where
   concat-correct : ∀ {ts ts′ ts′′} (p : Prog ts ts′) (p′ : Prog ts′ ts′′)
                    (s : VStack ts) →
                    progDenote (concat p p′) s ≡ progDenote p′ (progDenote p s)
-  concat-correct nil        p′ s = refl
-  concat-correct (cons {ts₂ = []} () p) p′ s
+  concat-correct nil                                 p′ s = refl
+  concat-correct (cons {ts₂ = []} () p)              p′ s
   concat-correct (cons {ts₂ = t ∷ ts₂} (iConst c) p) p′ s =
       concat-correct p p′ (c , s)
   concat-correct (cons {.(arg₁ ∷ arg₂ ∷ ts₂)} {t ∷ ts₂} (iBinop {arg₁} {arg₂} op) p)
@@ -162,21 +164,22 @@ module Typed where
   compile-correct′ : ∀ t (e : Exp t) ts (s : VStack ts) →
                      progDenote (compile e) s ≡ expDenote e , s
   compile-correct′ t (const c)        ts s = refl
-  compile-correct′ t (binop {t₁} {t₂} op e₁ e₂) ts s = begin
-      progDenote (concat (compile e₂) (concat (compile e₁) (cons (iBinop op) nil)))
-                 s
-          ≡⟨ concat-correct (compile e₂) _ s ⟩
-      progDenote (concat (compile e₁) (cons (iBinop op) nil))
-                 (progDenote (compile e₂) s)
-          ≡⟨ cong (λ p → progDenote (concat (compile e₁) (cons (iBinop op) nil)) p)
-                  (compile-correct′ t₂ e₂ ts s) ⟩
-      progDenote (concat (compile e₁) (cons (iBinop op) nil)) (expDenote e₂ , s)
-          ≡⟨ concat-correct (compile e₁) (cons (iBinop op) nil) _ ⟩
-      progDenote (cons (iBinop op) nil) (progDenote (compile e₁) (expDenote e₂ , s))
-          ≡⟨ cong (λ p → progDenote (cons (iBinop op) nil) p)
-                  (compile-correct′ t₁ e₁ _ _) ⟩
-      progDenote (cons (iBinop op) nil) (expDenote e₁ , expDenote e₂ , s)
+  compile-correct′ t (binop op e₁ e₂) ts s = begin
+      progDenote (concat ce₂ (cce₁ pend)) s
+          ≡⟨ concat-correct ce₂ _ s ⟩
+      progDenote (cce₁ pend) (progDenote ce₂ s)
+          ≡⟨ cong (λ p → progDenote (cce₁ pend) p) (compile-correct′ _ e₂ ts s) ⟩
+      progDenote (cce₁ pend) (ee₂ , s)
+          ≡⟨ concat-correct ce₁ pend _ ⟩
+      progDenote pend (progDenote ce₁ (ee₂ , s))
+          ≡⟨ cong (λ p → progDenote pend p) (compile-correct′ _ e₁ _ _) ⟩
+      progDenote pend (expDenote e₁ , ee₂ , s)
           ∎
+    where pend = cons (iBinop op) nil
+          ce₁  = compile e₁
+          ce₂  = compile e₂
+          cce₁ = concat ce₁
+          ee₂  = expDenote e₂
 
   compile-correct : ∀ (t : Type) e →
                     progDenote (compile {t} e) tt ≡ expDenote e , tt
