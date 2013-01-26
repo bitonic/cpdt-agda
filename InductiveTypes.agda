@@ -1,10 +1,11 @@
 module InductiveTypes where
 
-open import Data.Unit using (tt)
+open import Data.Unit using (tt; ⊤)
 open import Data.Empty using (⊥)
 open import Data.Nat using (ℕ; _+_; zero; suc)
 open import Data.Bool using (true; false; not; Bool)
 open import Data.List using (List; []; _∷_; length; _++_)
+open import Data.Product using (_×_; <_,_>)
 open import Relation.Binary.PropositionalEquality using (refl; _≡_; _≢_; cong; sym)
 open Relation.Binary.PropositionalEquality.≡-Reasoning
 open import Algebra.Structures
@@ -126,4 +127,42 @@ mutual
   appO : OddList → EvenList → OddList
   appO (n ∷O el₁) el₂ = n ∷O (appE el₁ el₂)
 
+mutual
+  lengthE-appE : ∀ el₁ el₂ → lengthE (appE el₁ el₂) ≡ lengthE el₁ + lengthE el₂
+  lengthE-appE nilE      el = refl
+  lengthE-appE (n ∷E ol) el = cong suc (lengthO-appO ol el)
+
+  lengthO-appO : ∀ ol el → lengthO (appO ol el) ≡ lengthO ol + lengthE el
+  lengthO-appO (n ∷O el₁) el₂ = cong suc (lengthE-appE el₁ el₂)
+
+data PFormula : Set where
+  truth falsehood : PFormula
+  conjunction     : PFormula → PFormula → PFormula
+
+
+pFormulaDenote : PFormula → Set
+pFormulaDenote truth               = ⊤
+pFormulaDenote falsehood           = ⊥
+pFormulaDenote (conjunction f₁ f₂) = pFormulaDenote f₁ × pFormulaDenote f₂
+
+data Formula : Set where
+  eq    : ℕ       → ℕ       → Formula
+  and   : Formula → Formula → Formula
+  foral : (ℕ → Formula)     → Formula -- The single l is to avoid clashes with
+                                      -- the keyword
+
+formulaDenote : Formula → Set
+formulaDenote (eq n m)    = n ≡ m
+formulaDenote (and f₁ f₂) = formulaDenote f₁ × formulaDenote f₂
+formulaDenote (foral f)   = (n : ℕ) → formulaDenote (f n)
+
+swapper : Formula → Formula
+swapper (eq n m)    = eq m n
+swapper (and f₁ f₂) = and f₁ f₂
+swapper (foral f)   = foral (λ n → swapper (f n))
+
+swapper-preserves-truth : ∀ f → formulaDenote f → formulaDenote (swapper f)
+swapper-preserves-truth (eq n m) p    = sym p
+swapper-preserves-truth (and f₁ f₂) p = p
+swapper-preserves-truth (foral f) p   = λ n → swapper-preserves-truth (f n) (p n)
 
