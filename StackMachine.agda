@@ -2,8 +2,7 @@ module StackMachine where
 
 open import Data.Nat using (ℕ; _+_; _*_)
 open import Data.List using (List; _∷_; [_]; _++_; [])
-import Data.List as List
-open import Data.Maybe
+open import Data.Maybe using (Maybe; just; nothing)
 open import Relation.Binary.PropositionalEquality using (refl; _≡_; cong)
 open Relation.Binary.PropositionalEquality.≡-Reasoning
 open import Data.Bool using (Bool; true; false)
@@ -13,6 +12,7 @@ open import Algebra.Structures
 open import Data.Product using (proj₂; _×_; _,_)
 open import Function using (case_of_)
 open import Relation.Nullary.Decidable using (⌊_⌋)
+open import Category.Monad
 
 module Untyped where
   data Binop : Set where
@@ -47,9 +47,8 @@ module Untyped where
   
   progDenote : Prog → Stack → Maybe Stack
   progDenote [] s = just s
-  progDenote (i ∷ p) s with instrDenote i s
-  ... | nothing = nothing
-  ... | just s' = progDenote p s'
+  progDenote (i ∷ p) s = instrDenote i s >>= progDenote p
+    where open RawMonad (Data.Maybe.monad)
   
   compile : Exp → Prog
   compile (const n)        = [ iConst n ]
@@ -71,7 +70,7 @@ module Untyped where
       progDenote p (binopDenote op (expDenote e₁) ee₂ ∷ s)
           ∎
     where
-      open Monoid (List.monoid Instr)
+      open Monoid (Data.List.monoid Instr)
       ce₁   = compile e₁
       ce₂   = compile e₂
       ee₂   = expDenote e₂
@@ -86,7 +85,7 @@ module Untyped where
       just [ expDenote e ]
           ∎
     where
-      open Monoid (List.monoid Instr)
+      open Monoid (Data.List.monoid Instr)
 
 module Typed where  
   data Type : Set where
@@ -175,11 +174,12 @@ module Typed where
           ≡⟨ cong (λ p → progDenote pend p) (compile-correct′ _ e₁ _ _) ⟩
       progDenote pend (expDenote e₁ , ee₂ , s)
           ∎
-    where pend = cons (iBinop op) nil
-          ce₁  = compile e₁
-          ce₂  = compile e₂
-          cce₁ = concat ce₁
-          ee₂  = expDenote e₂
+    where
+      pend = cons (iBinop op) nil
+      ce₁  = compile e₁
+      ce₂  = compile e₂
+      cce₁ = concat ce₁
+      ee₂  = expDenote e₂
 
   compile-correct : ∀ (t : Type) e →
                     progDenote (compile {t} e) tt ≡ expDenote e , tt
