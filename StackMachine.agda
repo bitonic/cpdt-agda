@@ -60,28 +60,29 @@ module Untyped where
   compile-correct′ (const n) _ _  = refl
   compile-correct′ (binop op e₁ e₂) p s = begin
       progDenote ((compile e₂ ++ (compile e₁ ++ [ iBinop op ])) ++ p) s
-      ≡⟨ cong (λ p → progDenote p s)
-              (assoc (compile e₂) (compile e₁ ++ [ iBinop op ]) p) ⟩
+          ≡⟨ cong (λ p → progDenote p s)
+                  (assoc (compile e₂) (compile e₁ ++ [ iBinop op ]) p) ⟩
       progDenote (compile e₂ ++ (compile e₁ ++ [ iBinop op ]) ++ p) s
-      ≡⟨ cong (λ p → progDenote p s) 
-              (cong (λ l → (compile e₂ ++ l)) (assoc (compile e₁) [ iBinop op ] p)) ⟩
+          ≡⟨ cong (λ p → progDenote p s) 
+                  (cong (λ l → (compile e₂ ++ l))
+                        (assoc (compile e₁) [ iBinop op ] p)) ⟩
       progDenote (compile e₂ ++ compile e₁ ++ [ iBinop op ] ++ p) s
-      ≡⟨ compile-correct′ e₂ (compile e₁ ++ [ iBinop op ] ++ p) s ⟩
+          ≡⟨ compile-correct′ e₂ (compile e₁ ++ [ iBinop op ] ++ p) s ⟩
       progDenote (compile e₁ ++ [ iBinop op ] ++ p) (expDenote e₂ ∷ s)
-      ≡⟨ compile-correct′ e₁ ([ iBinop op ] ++ p) (expDenote e₂ ∷ s) ⟩
+          ≡⟨ compile-correct′ e₁ ([ iBinop op ] ++ p) (expDenote e₂ ∷ s) ⟩
       progDenote p (binopDenote op (expDenote e₁) (expDenote e₂) ∷ s)
-      ∎
+          ∎
     where
       open Monoid (List.monoid Instr)
   
   compile-correct : ∀ e → progDenote (compile e) [] ≡ just [ expDenote e ]
   compile-correct e = begin
       progDenote (compile e) []
-      ≡⟨ cong (λ p → progDenote p []) (sym (proj₂ identity (compile e))) ⟩
+          ≡⟨ cong (λ p → progDenote p []) (sym (proj₂ identity (compile e))) ⟩
       progDenote (compile e ++ []) []
-      ≡⟨ compile-correct′ e [] [] ⟩
+          ≡⟨ compile-correct′ e [] [] ⟩
       just [ expDenote e ]
-      ∎
+          ∎
     where
       open Monoid (List.monoid Instr)
 
@@ -153,13 +154,29 @@ module Typed where
   concat-correct nil        p′ s = refl
   concat-correct (cons {ts₂ = []} () p) p′ s
   concat-correct (cons {ts₂ = t ∷ ts₂} (iConst c) p) p′ s =
-    concat-correct p p′ (c , s)
-  concat-correct (cons {.(arg₁ ∷ arg₂ ∷ ts₂)} {t ∷ ts₂}
-                       (iBinop {arg₁} {arg₂} op) p)
+      concat-correct p p′ (c , s)
+  concat-correct (cons {.(arg₁ ∷ arg₂ ∷ ts₂)} {t ∷ ts₂} (iBinop {arg₁} {arg₂} op) p)
                  p′ (n , m , s) =
-    concat-correct p p′ (binopDenote op n m , s)
+      concat-correct p p′ (binopDenote op n m , s)
 
   compile-correct′ : ∀ t (e : Exp t) ts (s : VStack ts) →
                      progDenote (compile e) s ≡ (expDenote e , s)
-  compile-correct′ t (const c) ts s = refl
-  compile-correct′ t (binop op e₁ e₂) ts s = {!!}
+  compile-correct′ t (const c)        ts s = refl
+  compile-correct′ .nat (binop plus e₁ e₂) ts s = begin
+      progDenote (concat (compile e₂) (concat (compile e₁) (cons (iBinop plus) nil)))
+                 s
+          ≡⟨ concat-correct (compile e₂) _ s ⟩
+      progDenote (concat (compile e₁) (cons (iBinop plus) nil))
+                 (progDenote (compile e₂) s)
+          ≡⟨ cong (λ p → progDenote (concat (compile e₁) (cons (iBinop plus) nil)) p)
+                  (compile-correct′ nat e₂ ts s) ⟩
+      progDenote (concat (compile e₁) (cons (iBinop plus) nil)) (expDenote e₂ , s)
+          ≡⟨ concat-correct (compile e₁) (cons (iBinop plus) nil) _ ⟩
+      progDenote (cons (iBinop plus) nil) (progDenote (compile e₁) (expDenote e₂ , s))
+          ≡⟨ cong (λ p → progDenote (cons (iBinop plus) nil) p)
+                  (compile-correct′ nat e₁ _ _) ⟩
+      expDenote e₁ + expDenote e₂ , s
+          ∎
+  compile-correct′ .nat (binop times e₁ e₂) ts s = {!!}
+  compile-correct′ .bool (binop {.t₂} {t₂} (eq .t₂) e₁ e₂) ts s = {!!}
+  compile-correct′ .bool (binop lt e₁ e₂) ts s = {!!}
