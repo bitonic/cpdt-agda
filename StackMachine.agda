@@ -162,21 +162,18 @@ module Typed where
   compile-correct′ : ∀ t (e : Exp t) ts (s : VStack ts) →
                      progDenote (compile e) s ≡ (expDenote e , s)
   compile-correct′ t (const c)        ts s = refl
-  compile-correct′ .nat (binop plus e₁ e₂) ts s = begin
-      progDenote (concat (compile e₂) (concat (compile e₁) (cons (iBinop plus) nil)))
+  compile-correct′ t (binop {t₁} {t₂} op e₁ e₂) ts s = begin
+      progDenote (concat (compile e₂) (concat (compile e₁) (cons (iBinop op) nil)))
                  s
           ≡⟨ concat-correct (compile e₂) _ s ⟩
-      progDenote (concat (compile e₁) (cons (iBinop plus) nil))
+      progDenote (concat (compile e₁) (cons (iBinop op) nil))
                  (progDenote (compile e₂) s)
-          ≡⟨ cong (λ p → progDenote (concat (compile e₁) (cons (iBinop plus) nil)) p)
-                  (compile-correct′ nat e₂ ts s) ⟩
-      progDenote (concat (compile e₁) (cons (iBinop plus) nil)) (expDenote e₂ , s)
-          ≡⟨ concat-correct (compile e₁) (cons (iBinop plus) nil) _ ⟩
-      progDenote (cons (iBinop plus) nil) (progDenote (compile e₁) (expDenote e₂ , s))
-          ≡⟨ cong (λ p → progDenote (cons (iBinop plus) nil) p)
-                  (compile-correct′ nat e₁ _ _) ⟩
-      expDenote e₁ + expDenote e₂ , s
+          ≡⟨ cong (λ p → progDenote (concat (compile e₁) (cons (iBinop op) nil)) p)
+                  (compile-correct′ t₂ e₂ ts s) ⟩
+      progDenote (concat (compile e₁) (cons (iBinop op) nil)) (expDenote e₂ , s)
+          ≡⟨ concat-correct (compile e₁) (cons (iBinop op) nil) _ ⟩
+      progDenote (cons (iBinop op) nil) (progDenote (compile e₁) (expDenote e₂ , s))
+          ≡⟨ cong (λ p → progDenote (cons (iBinop op) nil) p)
+                  (compile-correct′ t₁ e₁ _ _) ⟩
+      progDenote (cons (iBinop op) nil) (expDenote e₁ , expDenote e₂ , s)
           ∎
-  compile-correct′ .nat (binop times e₁ e₂) ts s = {!!}
-  compile-correct′ .bool (binop {.t₂} {t₂} (eq .t₂) e₁ e₂) ts s = {!!}
-  compile-correct′ .bool (binop lt e₁ e₂) ts s = {!!}
