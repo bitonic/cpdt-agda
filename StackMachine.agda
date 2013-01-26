@@ -160,7 +160,7 @@ module Typed where
       concat-correct p p′ (binopDenote op n m , s)
 
   compile-correct′ : ∀ t (e : Exp t) ts (s : VStack ts) →
-                     progDenote (compile e) s ≡ (expDenote e , s)
+                     progDenote (compile e) s ≡ expDenote e , s
   compile-correct′ t (const c)        ts s = refl
   compile-correct′ t (binop {t₁} {t₂} op e₁ e₂) ts s = begin
       progDenote (concat (compile e₂) (concat (compile e₁) (cons (iBinop op) nil)))
@@ -177,3 +177,7 @@ module Typed where
                   (compile-correct′ t₁ e₁ _ _) ⟩
       progDenote (cons (iBinop op) nil) (expDenote e₁ , expDenote e₂ , s)
           ∎
+
+  compile-correct : ∀ (t : Type) e →
+                    progDenote (compile {t} e) tt ≡ expDenote e , tt
+  compile-correct t e = compile-correct′ t e [] tt
