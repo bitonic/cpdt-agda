@@ -5,7 +5,7 @@ open import Data.Empty using (⊥)
 open import Data.Nat using (ℕ; _+_; zero; suc)
 open import Data.Bool using (true; false; not; Bool)
 open import Data.List using (List; []; _∷_; length; _++_)
-open import Data.Product using (_×_; <_,_>)
+open import Data.Product using (_×_)
 open import Relation.Binary.PropositionalEquality using (refl; _≡_; _≢_; cong; sym)
 open Relation.Binary.PropositionalEquality.≡-Reasoning
 open import Algebra.Structures
@@ -139,7 +139,6 @@ data PFormula : Set where
   truth falsehood : PFormula
   conjunction     : PFormula → PFormula → PFormula
 
-
 pFormulaDenote : PFormula → Set
 pFormulaDenote truth               = ⊤
 pFormulaDenote falsehood           = ⊥
@@ -165,4 +164,22 @@ swapper-preserves-truth : ∀ f → formulaDenote f → formulaDenote (swapper f
 swapper-preserves-truth (eq n m) p    = sym p
 swapper-preserves-truth (and f₁ f₂) p = p
 swapper-preserves-truth (foral f) p   = λ n → swapper-preserves-truth (f n) (p n)
+
+data Term : Set where
+  app abs : Term
+
+ℕ-ind : (P : ℕ → Set) → P 0 → (∀ n → P n → P (1 + n)) → ∀ n → P n
+ℕ-ind _ z ind zero    = z
+ℕ-ind P z ind (suc n) = ind n (ℕ-ind P z ind n)
+
+plusRec : ℕ → ℕ → ℕ
+plusRec zero    m = m
+plusRec (suc n) m = suc (plusRec n m)
+
+plusInd : ℕ → ℕ → ℕ
+plusInd = ℕ-ind (λ _ → ℕ → ℕ) (λ n → n) (λ _ r n → suc (r n))
+
+plus-≡ : ∀ n m → plusRec n m ≡ plusInd n m
+plus-≡ zero    m = refl
+plus-≡ (suc n) m = cong suc (plus-≡ n m)
 
