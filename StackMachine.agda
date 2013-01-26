@@ -93,15 +93,14 @@ module Typed where
     plus times :       Binop nat nat nat
     eq         : ∀ t → Binop t   t   bool
     lt         :       Binop nat nat bool
-  
-  data Exp : Type → Set where
-    nConst :               ℕ                               → Exp nat
-    bConst :               Bool                            → Exp bool
-    binop  : ∀ {t₁ t₂ t} → Binop t₁ t₂ t → Exp t₁ → Exp t₂ → Exp t
-  
+    
   typeDenote : Type → Set
   typeDenote nat  = ℕ
   typeDenote bool = Bool
+
+  data Exp : Type → Set where
+    const  : ∀ {t}       → typeDenote t                    → Exp t
+    binop  : ∀ {t₁ t₂ t} → Binop t₁ t₂ t → Exp t₁ → Exp t₂ → Exp t
   
   binopDenote : ∀ {arg₁ arg₂ res} → Binop arg₁ arg₂ res →
                 typeDenote arg₁ → typeDenote arg₂ → typeDenote res
@@ -112,18 +111,16 @@ module Typed where
   binopDenote lt        = λ n  m  → ⌊ n  ≤? m  ⌋ where open Data.Nat
   
   expDenote : ∀ {t} → Exp t → typeDenote t
-  expDenote (nConst n)       = n
-  expDenote (bConst b)       = b
+  expDenote (const c)        = c
   expDenote (binop op e₁ e₂) = binopDenote op (expDenote e₁) (expDenote e₂)
   
   TyStack : Set
   TyStack = List Type
   
   data Instr : TyStack → TyStack → Set where
-    iNConst : ∀ {s} → ℕ    → Instr s (nat ∷ s)
-    iBConst : ∀ {s} → Bool → Instr s (bool ∷ s)
-    iBinop  : ∀ {arg₁ arg₂ res s} → Binop arg₁ arg₂ res →
-              Instr (arg₁ ∷ arg₂ ∷ s) (res ∷ s)
+    iConst : ∀ {t s} → typeDenote t → Instr s (t ∷ s)
+    iBinop : ∀ {arg₁ arg₂ res s} → Binop arg₁ arg₂ res →
+             Instr (arg₁ ∷ arg₂ ∷ s) (res ∷ s)
   
   data Prog : TyStack → TyStack → Set where
     nil  : ∀ {ts}                                         → Prog ts ts
@@ -134,8 +131,7 @@ module Typed where
   VStack (t ∷ ts) = typeDenote t × VStack ts
   
   instrDenote : ∀ {ts ts′} → Instr ts ts′ → VStack ts → VStack ts′
-  instrDenote (iNConst n) s                 = n , s
-  instrDenote (iBConst b) s                 = b , s
+  instrDenote (iConst c) s                  = c , s
   instrDenote (iBinop op) (arg₁ , arg₂ , s) = binopDenote op arg₁ arg₂ , s
   
   progDenote : ∀ {ts ts′} → Prog ts ts′ → VStack ts → VStack ts′
@@ -147,8 +143,7 @@ module Typed where
   concat (cons i p) p′ = cons i (concat p p′)
   
   compile : ∀ {t} → Exp t → ∀ {ts} → Prog ts (t ∷ ts)
-  compile (nConst n)       = cons (iNConst n) nil
-  compile (bConst b)       = cons (iBConst b) nil
+  compile (const c)        = cons (iConst c) nil
   compile (binop op e₁ e₂) =
       concat (compile e₂) (concat (compile e₁) (cons (iBinop op) nil))
 
@@ -157,21 +152,14 @@ module Typed where
                    progDenote (concat p p′) s ≡ progDenote p′ (progDenote p s)
   concat-correct nil        p′ s = refl
   concat-correct (cons {ts₂ = []} () p) p′ s
-  concat-correct (cons {ts₂ = nat ∷ ts₂} (iNConst n) p) p′ s =
-    concat-correct p p′ (n , s)
-  concat-correct (cons {.(arg₁ ∷ arg₂ ∷ ts₂)} {nat ∷ ts₂}
+  concat-correct (cons {ts₂ = t ∷ ts₂} (iConst c) p) p′ s =
+    concat-correct p p′ (c , s)
+  concat-correct (cons {.(arg₁ ∷ arg₂ ∷ ts₂)} {t ∷ ts₂}
                        (iBinop {arg₁} {arg₂} op) p)
                  p′ (n , m , s) =
     concat-correct p p′ (binopDenote op n m , s)
-  concat-correct (cons {ts₂ = bool ∷ ts₂} (iBConst b) p) p′ s =
-    concat-correct p p′ (b , s)
-  concat-correct (cons {.(arg₁ ∷ arg₂ ∷ ts₂)} {bool ∷ ts₂}
-                       (iBinop {arg₁} {arg₂} op) p)
-                 p′ (b₁ , b₂ , s) =
-    concat-correct p p′ (binopDenote op b₁ b₂ , s)
 
   compile-correct′ : ∀ t (e : Exp t) ts (s : VStack ts) →
                      progDenote (compile e) s ≡ (expDenote e , s)
-  compile-correct′ .nat (nConst n) ts s = refl
-  compile-correct′ .bool (bConst b) ts s = refl
+  compile-correct′ t (const c) ts s = refl
   compile-correct′ t (binop op e₁ e₂) ts s = {!!}
