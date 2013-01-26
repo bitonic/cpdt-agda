@@ -4,8 +4,8 @@ open import Data.Unit using (tt; ⊤)
 open import Data.Empty using (⊥)
 open import Data.Nat using (ℕ; _+_; zero; suc)
 open import Data.Bool using (true; false; not; Bool)
-open import Data.List using (List; []; _∷_; length; _++_)
-open import Data.Product using (_×_)
+open import Data.List using (List; []; _∷_; length; _++_; sum; map; [_])
+open import Data.Product using (_×_; _,_)
 open import Relation.Binary.PropositionalEquality using (refl; _≡_; _≢_; cong; sym)
 open Relation.Binary.PropositionalEquality.≡-Reasoning
 open import Algebra.Structures
@@ -57,44 +57,45 @@ lengthℕ-appℕ : ∀ {ns ms} → lengthℕ (appℕ ns ms) ≡ lengthℕ ns + l
 lengthℕ-appℕ {nilℕ}    = refl
 lengthℕ-appℕ {x ∷ℕ ns} = cong suc (lengthℕ-appℕ {ns})
 
-data Treeℕ : Set where
-  leafℕ : Treeℕ
-  nodeℕ : Treeℕ → ℕ → Treeℕ → Treeℕ
-
-sizeℕ : Treeℕ → ℕ
-sizeℕ leafℕ             = 1
-sizeℕ (nodeℕ tr₁ n tr₂) = (sizeℕ tr₁) + (sizeℕ tr₂)
-
-spliceℕ : (tr₁ tr₂ : Treeℕ) → Treeℕ
-spliceℕ leafℕ             tr₂ = nodeℕ tr₂ 0 leafℕ
-spliceℕ (nodeℕ tr₁ n tr₂) tr₃ = nodeℕ (spliceℕ tr₁ tr₃) n tr₂
-
--- Commented out since IsCommutativeSemiring has exactly the same
--- +-assoc : ∀ {n₁ n₂ n₃} → (n₁ + n₂) + n₃ ≡ n₁ + (n₂ + n₃)
--- +-assoc {zero}   = refl
--- +-assoc {suc n₁} = cong suc (+-assoc {n₁})
-
-foo : ∀ {x y z} → x + y + z ≡ (x + y) + z
-foo = refl
-
-sizeℕ-spliceℕ : ∀ tr₁ tr₂ → sizeℕ (spliceℕ tr₁ tr₂) ≡ sizeℕ tr₁ + sizeℕ tr₂
-sizeℕ-spliceℕ leafℕ             tr₂ = +-comm (sizeℕ tr₂) 1
-sizeℕ-spliceℕ (nodeℕ tr₁ n tr₂) tr₃ = begin
-    sizeℕ (spliceℕ tr₁ tr₃) + str₂
-       ≡⟨ cong (λ p → p + str₂) (sizeℕ-spliceℕ tr₁ tr₃) ⟩
-    str₁ + str₃ + str₂
-       ≡⟨ +-assoc str₁ _ _ ⟩
-    str₁ + (str₃ + str₂)
-       ≡⟨ cong (λ p → str₁ + p) (+-comm str₃ _) ⟩
-    str₁ + (str₂ + str₃)
-       ≡⟨ sym (+-assoc str₁ _ _) ⟩
-    str₁ + str₂ + str₃
-       ∎
-  where
-    str₁ = sizeℕ tr₁
-    str₂ = sizeℕ tr₂
-    str₃ = sizeℕ tr₃
-
+module BinaryTree where
+  data Tree : Set where
+    leaf : Tree
+    node : Tree → ℕ → Tree → Tree
+  
+  size : Tree → ℕ
+  size leaf             = 1
+  size (node tr₁ n tr₂) = (size tr₁) + (size tr₂)
+  
+  splice : (tr₁ tr₂ : Tree) → Tree
+  splice leaf             tr₂ = node tr₂ 0 leaf
+  splice (node tr₁ n tr₂) tr₃ = node (splice tr₁ tr₃) n tr₂
+  
+  -- Commented out since IsCommutativeSemiring has exactly the same
+  -- +-assoc : ∀ {n₁ n₂ n₃} → (n₁ + n₂) + n₃ ≡ n₁ + (n₂ + n₃)
+  -- +-assoc {zero}   = refl
+  -- +-assoc {suc n₁} = cong suc (+-assoc {n₁})
+  
+  foo : ∀ {x y z} → x + y + z ≡ (x + y) + z
+  foo = refl
+  
+  size-splice : ∀ tr₁ tr₂ → size (splice tr₁ tr₂) ≡ size tr₁ + size tr₂
+  size-splice leaf             tr₂ = +-comm (size tr₂) 1
+  size-splice (node tr₁ n tr₂) tr₃ = begin
+      size (splice tr₁ tr₃) + str₂
+         ≡⟨ cong (λ p → p + str₂) (size-splice tr₁ tr₃) ⟩
+      str₁ + str₃ + str₂
+         ≡⟨ +-assoc str₁ _ _ ⟩
+      str₁ + (str₃ + str₂)
+         ≡⟨ cong (λ p → str₁ + p) (+-comm str₃ _) ⟩
+      str₁ + (str₂ + str₃)
+         ≡⟨ sym (+-assoc str₁ _ _) ⟩
+      str₁ + str₂ + str₃
+         ∎
+    where
+      str₁ = size tr₁
+      str₂ = size tr₂
+      str₃ = size tr₃
+  
 -- Omitting the `list' stuff since we have everything we need...
 
 -- Even agsy can do this!  Take that crush...
@@ -114,10 +115,10 @@ mutual
 mutual
   lengthE : EvenList → ℕ
   lengthE nilE      = 0
-  lengthE (n ∷E ol) = 1 + lengthO ol
+  lengthE (n ∷E ol) = suc (lengthO ol)
 
   lengthO : OddList → ℕ
-  lengthO (n ∷O el) = 1 + lengthE el
+  lengthO (n ∷O el) = suc (lengthE el)
 
 mutual
   appE : EvenList → EvenList → EvenList
@@ -150,9 +151,12 @@ data Formula : Set where
   foral : (ℕ → Formula)     → Formula -- The single l is to avoid clashes with
                                       -- the keyword
 
+_∧_ : Set → Set → Set
+_∧_ = _×_
+
 formulaDenote : Formula → Set
 formulaDenote (eq n m)    = n ≡ m
-formulaDenote (and f₁ f₂) = formulaDenote f₁ × formulaDenote f₂
+formulaDenote (and f₁ f₂) = formulaDenote f₁ ∧ formulaDenote f₂
 formulaDenote (foral f)   = (n : ℕ) → formulaDenote (f n)
 
 swapper : Formula → Formula
@@ -168,7 +172,7 @@ swapper-preserves-truth (foral f) p   = λ n → swapper-preserves-truth (f n) (
 data Term : Set where
   app abs : Term
 
-ℕ-ind : (P : ℕ → Set) → P 0 → (∀ n → P n → P (1 + n)) → ∀ n → P n
+ℕ-ind : (P : ℕ → Set) → P 0 → (∀ n → P n → P (suc n)) → ∀ n → P n
 ℕ-ind _ z ind zero    = z
 ℕ-ind P z ind (suc n) = ind n (ℕ-ind P z ind n)
 
@@ -183,3 +187,41 @@ plus-≡ : ∀ n m → plusRec n m ≡ plusInd n m
 plus-≡ zero    m = refl
 plus-≡ (suc n) m = cong suc (plus-≡ n m)
 
+module NestedTree where
+  data Tree : Set where
+    node : ℕ → List Tree → Tree
+
+  all : {A : Set} (P : A → Set) → List A → Set
+  all P [] = ⊤
+  all P (x ∷ xs) = P x ∧ all P xs
+
+  Tree-ind : (P : Tree → Set) →
+             (∀ n ls → all P ls → P (node n ls) ) →
+             ∀ tr → P tr
+  Tree-ind P ind (node n trs′) = ind n trs′ (trsAll trs′)
+    where
+      trsAll : (trs : List Tree) → all P trs
+      trsAll []         = tt
+      trsAll (tr ∷ trs) = Tree-ind P ind tr , trsAll trs
+
+  -- "Notice that Coq was smart enough to expand the definition of [map] to
+  -- verify that we are using proper nested recursion, even through a use of a
+  -- higher-order function.".  Apparently agda isn't, `size (node n trs) = suc
+  -- (sum (map size trs))' is salmon.
+ 
+  size : Tree → ℕ
+  size (node n [])         = 1
+  size (node n (tr ∷ trs)) = size tr + size (node n trs)
+
+  splice : Tree → Tree → Tree
+  splice (node n [])          tr₂ = node n [ tr₂ ]
+  splice (node n (tr₁ ∷ trs)) tr₂ = node n (splice tr₁ tr₂ ∷ trs)
+
+  +-suc : ∀ n m → n + (suc m) ≡ suc (n + m)
+  +-suc zero    m = refl
+  +-suc (suc n) m = cong suc (+-suc n m)
+
+  -- This is made more difficult but the non-map definition of `size'...
+  size-splice : ∀ tr₁ tr₂ → size (splice tr₁ tr₂) ≡ size tr₂ + size tr₁
+  size-splice (node n [])          tr₂ = refl
+  size-splice (node n (tr₁ ∷ trs)) tr₂ = {!!}
