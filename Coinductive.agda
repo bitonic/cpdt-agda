@@ -4,11 +4,13 @@ module Coinductive where
 open import Relation.Binary.PropositionalEquality
             using (refl; _≡_; cong; sym; trans; subst)
 open Relation.Binary.PropositionalEquality.≡-Reasoning
-open import Data.Nat using (ℕ; zero; suc)
+open import Data.Nat using (ℕ; zero; suc; _*_; _+_)
 open import Data.Bool using (Bool; true; false)
 open import Data.List using (List; _∷_; [])
 open import Coinduction
-open import Data.Product using (_,_; proj₁; proj₂)
+open import Data.Product using (_,_; proj₁; proj₂; ∃)
+import Data.Nat.Properties
+open Data.Nat.Properties.SemiringSolver
 
 open import Common
 
@@ -106,3 +108,54 @@ stream-=-loop′ s₁ s₂ p q s =
 
 ones-=′′ : Stream-= ones ones′
 ones-=′′ = stream-=-loop ones ones′ refl refl refl
+
+fact : ℕ → ℕ
+fact zero    = 1
+fact (suc n) = suc n * fact n
+
+fact-slow′ : ℕ → Stream ℕ
+hd (fact-slow′ n) = fact n
+tl (fact-slow′ n) = fact-slow′ (suc n)
+
+fact-slow : Stream ℕ
+fact-slow = fact-slow′ 1
+
+fact-iter′ : ℕ → ℕ → Stream ℕ
+hd (fact-iter′ cur acc) = acc
+tl (fact-iter′ cur acc) = fact-iter′ (suc cur) (acc * cur)
+
+fact-iter : Stream ℕ
+fact-iter = fact-iter′ 2 1
+
+fact-suc : ∀ n → fact n * suc n ≡ fact n + n * fact n
+fact-suc n = solve 2 (λ n m → n :* :suc m := n :+ m :* n) refl (fact n) n
+
+fact-def : ∀ x n → fact-iter′ x (fact n * suc n) ≡ fact-iter′ x (fact (suc n))
+fact-def x n = cong (fact-iter′ x) (fact-suc n)
+
+-- TODO try to do this with copatterns
+fact-eq′ : ∀ n → Stream-= (fact-iter′ (suc n) (fact n)) (fact-slow′ n)
+fact-eq′ n = stream-=-coind R hd-case tl-case
+                            (fact-iter′ (suc n) (fact n)) (fact-slow′ n)
+                            (n , refl , refl)
+  where
+    R : Stream ℕ → Stream ℕ → Set
+    R s₁ s₂ = ∃ (λ n → s₁ ≡ fact-iter′ (suc n) (fact n) ∧ s₂ ≡ fact-slow′ n)
+
+    hd-case : ∀ {s₁ s₂} → R s₁ s₂ → hd s₁ ≡ hd s₂
+    hd-case {s₁} {s₂} (n , r₁ , r₂) = begin
+        hd s₁                            ≡⟨ cong hd r₁ ⟩
+        hd (fact-iter′ (suc n) (fact n)) ≡⟨ cong hd (sym r₂) ⟩
+        hd s₂                            ∎
+
+    tl-case : ∀ {s₁ s₂} → R s₁ s₂ → R (tl s₁) (tl s₂)
+    tl-case {s₁} {s₂} (n , r₁ , r₂) =
+        suc n ,
+        (begin tl s₁
+                   ≡⟨ cong tl r₁ ⟩
+               tl (fact-iter′ (suc n) (fact n))
+                   ≡⟨ fact-def (suc (suc n)) n ⟩
+               fact-iter′ (suc (suc n)) (fact n + n * fact n)
+                   ∎) ,
+        cong tl r₂
+
