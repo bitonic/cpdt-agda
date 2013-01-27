@@ -12,6 +12,9 @@ open import Algebra.Structures
 import Data.Nat.Properties
 open IsCommutativeSemiring Data.Nat.Properties.isCommutativeSemiring using
      (+-comm; +-assoc)
+open Data.Nat.Properties.SemiringSolver
+
+open import Common
 
 unit-singleton : ∀ {x} → x ≡ tt
 unit-singleton = refl
@@ -84,11 +87,7 @@ module BinaryTree where
       size (splice tr₁ tr₃) + str₂
          ≡⟨ cong (λ p → p + str₂) (size-splice tr₁ tr₃) ⟩
       str₁ + str₃ + str₂
-         ≡⟨ +-assoc str₁ _ _ ⟩
-      str₁ + (str₃ + str₂)
-         ≡⟨ cong (λ p → str₁ + p) (+-comm str₃ _) ⟩
-      str₁ + (str₂ + str₃)
-         ≡⟨ sym (+-assoc str₁ _ _) ⟩
+         ≡⟨ solve 3 (λ n m k → n :+ k :+ m := n :+ m :+ k) refl str₁ str₂ str₃ ⟩
       str₁ + str₂ + str₃
          ∎
     where
@@ -229,21 +228,14 @@ module NestedTree where
   1+m+n (suc m) n = cong suc (1+m+n m n)
 
   size-splice : ∀ tr₁ tr₂ → size (splice tr₁ tr₂) ≡ size tr₂ + size tr₁
-  size-splice (node n [])          tr₂ = begin
-      suc (str₂ + 0)
-          ≡⟨ cong suc (+-comm str₂ 0) ⟩
-      suc str₂
-          ≡⟨ +-comm 1 str₂ ⟩
-      str₂ + 1
-          ∎
-    where str₂ = size tr₂
+  size-splice (node n [])          tr₂ =
+      solve 1 (λ n → :suc (n :+ con 0) := n :+ con 1) refl (size tr₂)
   size-splice (node n (tr₁ ∷ trs)) tr₂ = begin
       suc (size (splice tr₁ tr₂) + strs)
           ≡⟨ cong (λ p → suc (p + strs)) (size-splice tr₁ tr₂) ⟩
       suc (str₂ + str₁ + strs)
-          ≡⟨ cong suc (+-assoc str₂ str₁ strs) ⟩
-      suc (str₂ + (str₁ + strs))
-          ≡⟨ 1+m+n str₂ (str₁ + strs) ⟩
+          ≡⟨ solve 3 (λ n m k → :suc (n :+ m :+ k) := n :+ :suc (m :+ k))
+                   refl str₂ str₁ strs ⟩
       str₂ + suc (str₁ + strs)
           ∎
     where
