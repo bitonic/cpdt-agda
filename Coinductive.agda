@@ -58,9 +58,6 @@ record Stream-= {A : Set} (xs : Stream A) (ys : Stream A) : Set where
     tl=tl : Stream-= (tl xs) (tl ys)
 open Stream-=
 
--- data Stream-= {A} : Stream A → Stream A → Set where
---   stream-= : ∀ h {t₁ t₂} →  ∞ (Stream-= (♭ t₁) (♭ t₂)) → Stream-= (h ∷ t₁) (h ∷ t₂)
-
 ones-= : Stream-= ones ones′
 hd=hd ones-= = refl
 tl=tl ones-= = ones-=
@@ -75,8 +72,8 @@ tl=tl (stream-=-coind R f g s₁ s₂ p) = stream-=-coind R f g (tl s₁) (tl s�
 
 ones-=′ : Stream-= ones ones′
 ones-=′ = stream-=-coind (λ s₁ s₂ → s₁ ≡ ones ∧ s₂ ≡ ones′)
-                         (λ {_}  {s₂} p → {!!})
-                         (λ {s₁} {s₂} p → {!!} , {!!})
+                         (λ { (r₁ , r₂) → trans (cong hd r₁) (sym (cong hd r₂)) })
+                         (λ { (r₁ , r₂) → cong tl r₁ , cong tl r₂})
                          ones ones′ (refl , refl)
 
 stream-=-loop : ∀ {A} (s₁ s₂ : Stream A) →
