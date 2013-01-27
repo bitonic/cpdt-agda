@@ -199,19 +199,22 @@ module NestedTree where
              (∀ n ls → all P ls → P (node n ls) ) →
              ∀ tr → P tr
   Tree-ind P ind (node n trs′) = ind n trs′ (trsAll trs′)
-    where
-      trsAll : (trs : List Tree) → all P trs
-      trsAll []         = tt
-      trsAll (tr ∷ trs) = Tree-ind P ind tr , trsAll trs
+    where trsAll : (trs : List Tree) → all P trs
+          trsAll []         = tt
+          trsAll (tr ∷ trs) = Tree-ind P ind tr , trsAll trs
 
   -- "Notice that Coq was smart enough to expand the definition of [map] to
   -- verify that we are using proper nested recursion, even through a use of a
   -- higher-order function.".  Apparently agda isn't, `size (node n trs) = suc
   -- (sum (map size trs))' is salmon.
  
-  size : Tree → ℕ
-  size (node n [])         = 1
-  size (node n (tr ∷ trs)) = size tr + size (node n trs)
+  mutual
+    size : Tree → ℕ
+    size (node n trs′) = suc (sizeList trs′)
+
+    sizeList : List Tree → ℕ
+    sizeList []         = 0
+    sizeList (tr ∷ trs) = size tr + sizeList trs
 
   splice : Tree → Tree → Tree
   splice (node n [])          tr₂ = node n [ tr₂ ]
@@ -221,7 +224,32 @@ module NestedTree where
   +-suc zero    m = refl
   +-suc (suc n) m = cong suc (+-suc n m)
 
-  -- This is made more difficult but the non-map definition of `size'...
+  1+m+n : ∀ m n → suc (m + n) ≡ m + suc n
+  1+m+n zero    n = refl
+  1+m+n (suc m) n = cong suc (1+m+n m n)
+
   size-splice : ∀ tr₁ tr₂ → size (splice tr₁ tr₂) ≡ size tr₂ + size tr₁
-  size-splice (node n [])          tr₂ = refl
-  size-splice (node n (tr₁ ∷ trs)) tr₂ = {!!}
+  size-splice (node n [])          tr₂ = begin
+      suc (str₂ + 0)
+          ≡⟨ cong suc (+-comm str₂ 0) ⟩
+      suc str₂
+          ≡⟨ +-comm 1 str₂ ⟩
+      str₂ + 1
+          ∎
+    where str₂ = size tr₂
+  size-splice (node n (tr₁ ∷ trs)) tr₂ = begin
+      suc (size (splice tr₁ tr₂) + strs)
+          ≡⟨ cong (λ p → suc (p + strs)) (size-splice tr₁ tr₂) ⟩
+      suc (str₂ + str₁ + strs)
+          ≡⟨ cong suc (+-assoc str₂ str₁ strs) ⟩
+      suc (str₂ + (str₁ + strs))
+          ≡⟨ 1+m+n str₂ (str₁ + strs) ⟩
+      str₂ + suc (str₁ + strs)
+          ∎
+    where
+      str₁ = size tr₁
+      str₂ = size tr₂
+      strs = sizeList trs
+
+true-≢-false : true ≢ false
+true-≢-false ()
