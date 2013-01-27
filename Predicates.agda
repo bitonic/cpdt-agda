@@ -85,7 +85,4 @@ isZero-contra ()
 isZero-contra′ : IsZero 1 → 2 + 2 ≡ 5
 isZero-contra′ ()
 
--- TwoEls
-
-
-  
+-- Needs finishing
