@@ -63,7 +63,10 @@ stream-=-coind R f g (h₁ ∷ t₁) ( h₂ ∷ t₂) p with f p
 stream-=-coind R f g (h₁ ∷ t₁) (.h₁ ∷ t₂) p  | refl =
     stream-= h₁ (♯ stream-=-coind R f g (♭ t₁) (♭ t₂) (g p))
 
--- We don't a ones-eq′ to play with...
+ones-=′ : Stream-= ones ones′
+ones-=′ = stream-=-coind (λ s₁ s₂ → s₁ ≡ ones ∧ s₂ ≡ ones′)
+                         {!!} {!!}
+                         ones ones′ ({!!} , {!!})
 
 stream-=-loop : ∀ {A} (s₁ s₂ : Stream A) →
                 hd s₁ ≡ hd s₂ → tl s₁ ≡ s₁ → tl s₂ ≡ s₂ →
@@ -80,3 +83,6 @@ stream-=-loop s₁ s₂ p q s =
     hd-case  {s₁′} {s₂′} (r₁ , r₂) = begin hd s₁′ ≡⟨ trans (cong hd r₁) p ⟩
                                            hd s₂  ≡⟨ cong hd (sym r₂) ⟩
                                            hd s₂′ ∎
+
+ones-=′′ : Stream-= ones ones′
+ones-=′′ = stream-=-loop ones ones′ refl {!!} {!!}
