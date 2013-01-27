@@ -11,3 +11,5 @@ module README where
 
 import StackMachine
 import InductiveTypes
+import Predicates
+import Coinductive
