@@ -61,7 +61,7 @@ stream-=-coind : ∀ {A} (R : Stream A → Stream A → Set) →
                  ∀ s₁ s₂ → R s₁ s₂ → Stream-= s₁ s₂
 stream-=-coind R f g (h₁ ∷ t₁) ( h₂ ∷ t₂) p with f p 
 stream-=-coind R f g (h₁ ∷ t₁) (.h₁ ∷ t₂) p  | refl =
-  stream-= h₁ (♯ stream-=-coind R f g (♭ t₁) (♭ t₂) (g p))
+    stream-= h₁ (♯ stream-=-coind R f g (♭ t₁) (♭ t₂) (g p))
 
 -- We don't a ones-eq′ to play with...
 
