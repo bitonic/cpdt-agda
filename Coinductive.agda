@@ -7,7 +7,7 @@ open import Data.Nat using (ℕ; zero; suc)
 open import Data.Bool using (Bool; true; false)
 open import Data.List using (List; _∷_; [])
 open import Coinduction
-open import Data.Product using (_,_)
+open import Data.Product using (_,_; proj₁; proj₂)
 
 open import Common
 
@@ -65,8 +65,9 @@ stream-=-coind R f g (h₁ ∷ t₁) (.h₁ ∷ t₂) p  | refl =
 
 ones-=′ : Stream-= ones ones′
 ones-=′ = stream-=-coind (λ s₁ s₂ → s₁ ≡ ones ∧ s₂ ≡ ones′)
-                         {!!} {!!}
-                         ones ones′ ({!!} , {!!})
+                         (λ {_}  {s₂} p → {!!})
+                         (λ {s₁} {s₂} p → {!!} , {!!})
+                         ones ones′ (refl , refl)
 
 stream-=-loop : ∀ {A} (s₁ s₂ : Stream A) →
                 hd s₁ ≡ hd s₂ → tl s₁ ≡ s₁ → tl s₂ ≡ s₂ →
@@ -85,4 +86,4 @@ stream-=-loop s₁ s₂ p q s =
                                            hd s₂′ ∎
 
 ones-=′′ : Stream-= ones ones′
-ones-=′′ = stream-=-loop ones ones′ refl {!!} {!!}
+ones-=′′ = stream-=-loop ones ones′ refl refl refl
