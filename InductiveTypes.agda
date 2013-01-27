@@ -5,7 +5,7 @@ open import Data.Empty using (⊥)
 open import Data.Nat using (ℕ; _+_; zero; suc)
 open import Data.Bool using (true; false; not; Bool)
 open import Data.List using (List; []; _∷_; length; _++_; sum; map; [_])
-open import Data.Product using (_×_; _,_)
+open import Data.Product using (_,_)
 open import Relation.Binary.PropositionalEquality using (refl; _≡_; _≢_; cong; sym)
 open Relation.Binary.PropositionalEquality.≡-Reasoning
 open import Algebra.Structures
@@ -142,17 +142,13 @@ data PFormula : Set where
 pFormulaDenote : PFormula → Set
 pFormulaDenote truth               = ⊤
 pFormulaDenote falsehood           = ⊥
-pFormulaDenote (conjunction f₁ f₂) = pFormulaDenote f₁ × pFormulaDenote f₂
+pFormulaDenote (conjunction f₁ f₂) = pFormulaDenote f₁ ∧ pFormulaDenote f₂
 
 data Formula : Set where
   eq    : ℕ       → ℕ       → Formula
   and   : Formula → Formula → Formula
   foral : (ℕ → Formula)     → Formula -- The single l is to avoid clashes with
                                       -- the keyword
-
-_∧_ : Set → Set → Set
-_∧_ = _×_
-
 formulaDenote : Formula → Set
 formulaDenote (eq n m)    = n ≡ m
 formulaDenote (and f₁ f₂) = formulaDenote f₁ ∧ formulaDenote f₂
