@@ -1,6 +1,7 @@
 module Coinductive where
 
-open import Relation.Binary.PropositionalEquality using (refl; _≡_; cong; sym; trans)
+open import Relation.Binary.PropositionalEquality
+            using (refl; _≡_; cong; sym; trans; subst)
 open Relation.Binary.PropositionalEquality.≡-Reasoning
 open import Data.Nat using (ℕ; zero; suc)
 open import Data.Bool using (Bool; true; false)
@@ -68,6 +69,14 @@ stream-=-loop : ∀ {A} (s₁ s₂ : Stream A) →
                 hd s₁ ≡ hd s₂ → tl s₁ ≡ s₁ → tl s₂ ≡ s₂ →
                 Stream-= s₁ s₂
 stream-=-loop s₁ s₂ p q s =
-  stream-=-coind (λ s₁′ s₂′ → s₁′ ≡ s₁ ∧ s₂′ ≡ s₂)
-                 (λ { (x , y) → {!!} }) {!!}
-                 s₁ s₂ (refl , refl)
+    stream-=-coind R hd-case
+                   (λ {(r₁ , r₂) → trans (cong tl r₁) q , trans (cong tl r₂) s})
+                   s₁ s₂ (refl , refl)
+  where
+    R : Stream _ → Stream _ → Set
+    R s₁′ s₂′ = s₁′ ≡ s₁ ∧ s₂′ ≡ s₂
+
+    hd-case : ∀ {s₁′ s₂′} → R s₁′ s₂′ → hd s₁′ ≡ hd s₂′
+    hd-case  {s₁′} {s₂′} (r₁ , r₂) = begin hd s₁′ ≡⟨ trans (cong hd r₁) p ⟩
+                                           hd s₂  ≡⟨ cong hd (sym r₂) ⟩
+                                           hd s₂′ ∎
