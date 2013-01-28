@@ -1,7 +1,7 @@
 module Coinductive where
 
 open import Relation.Binary.PropositionalEquality
-            using (refl; _≡_; cong; sym; trans; subst)
+            using (refl; _≡_; cong; sym; trans; subst; _≢_; cong₂)
 open Relation.Binary.PropositionalEquality.≡-Reasoning
 open import Data.Nat using (ℕ; zero; suc; _*_; _+_)
 open import Data.Bool using (Bool; true; false; if_then_else_)
@@ -171,9 +171,8 @@ Var = ℕ
 Vars : Set
 Vars = Var → Var
 
--- Set is taken...
-Set′ : Vars → Var → ℕ → Vars
-Set′ vs v n v′ = if ⌊ v ≟ v′ ⌋ then n else vs v′ where open Data.Nat
+set : Vars → Var → ℕ → Vars
+set vs v n v′ = if ⌊ v ≟ v′ ⌋ then n else vs v′ where open Data.Nat
 
 data Exp : Set where
   const : ℕ         → Exp
@@ -188,4 +187,43 @@ evalExp vs (plus e₁ e₂) = evalExp vs e₁ + evalExp vs e₂
 data Cmd : Set where
   assign : Var → Exp → Cmd
   seq    : Cmd → Cmd → Cmd
-  While  : Exp → Cmd → Cmd
+  while  : Exp → Cmd → Cmd
+
+data EvalCmd (vs : Vars) : Cmd → Vars → Set where
+  evalAssign     : ∀ {v e} →
+                   EvalCmd vs (assign v e) (set vs v (evalExp vs e))
+  evalSeq        : ∀ {vs₁ vs₂ c₁ c₂} →
+                   ∞ (EvalCmd vs c₁ vs₁) → ∞ (EvalCmd vs₁ c₂ vs₂) →
+                   EvalCmd vs (seq c₁ c₂) vs₂
+  evalWhileFalse : ∀ {e c} → evalExp vs e ≡ 0 → EvalCmd vs (while e c) vs
+  evalWhileTrue  : ∀ {vs₁ vs₂ e c} →
+                   evalExp vs e ≢ 0 →
+                   ∞ (EvalCmd vs c vs₂) → ∞ (EvalCmd vs₁ (while e c) vs₂) →
+                   EvalCmd vs (while e c) vs₂
+
+evalCmd-coind : (R : Vars → Cmd → Vars → Set) →
+                (∀ vs₁ vs₂ v e   → R vs₁ (assign v e) vs₂) →
+                (∀ vs₁ vs₃ c₁ c₂ → R vs₁ (seq c₁ c₂) vs₃) →
+                (∀ vs₁ vs₃ e c   → R vs₁ (while e c) vs₃) →
+                ∀ vs₁ c vs₂ → R vs₁ c vs₂ → EvalCmd vs₁ c vs₂
+evalCmd-coind R assc seqc whilec vs₁ (assign v e) vs₂ r = {!!}
+evalCmd-coind R assc seqc whilec vs₁ (seq c₁ c₂)  vs₂ r = {!!}
+evalCmd-coind R assc seqc whilec vs₁ (while e c)  vs₂ r = {!!}
+
+optExp′ : (e : Exp) → ∃ (λ e′ → ∀ {vs} → evalExp vs e′ ≡ evalExp vs e)
+optExp′ (plus (const 0) e) = let (e′ , p ) = optExp′ e in e′ , p
+optExp′ (plus e₁ e₂)       = let (e₁′ , p) = optExp′ e₁
+                                 (e₂′ , q) = optExp′ e₂
+                             in plus e₁′ e₂′ , cong₂ _+_ p q
+optExp′ e                  = e , refl
+
+optExp : Exp → Exp
+optExp = proj₁ ∘ optExp′
+
+optExp-correct : ∀ e {vs} → evalExp vs (optExp e) ≡ evalExp vs e
+optExp-correct = proj₂ ∘ optExp′
+
+optCmd : Cmd → Cmd
+optCmd (assign v e) = assign v (optExp e)
+optCmd (seq c₁ c₂)  = seq (optCmd c₁) (optCmd c₂)
+optCmd (while e c)  = while (optExp e) (optCmd c)
