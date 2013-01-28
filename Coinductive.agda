@@ -169,7 +169,7 @@ Var : Set
 Var = ℕ
 
 Vars : Set
-Vars = Var → Var
+Vars = Var → ℕ
 
 set : Vars → Var → ℕ → Vars
 set vs v n v′ = if ⌊ v ≟ v′ ⌋ then n else vs v′ where open Data.Nat
@@ -202,11 +202,17 @@ data EvalCmd (vs : Vars) : Cmd → Vars → Set where
                    EvalCmd vs (while e c) vs₂
 
 evalCmd-coind : (R : Vars → Cmd → Vars → Set) →
-                (∀ vs₁ vs₂ v e   → R vs₁ (assign v e) vs₂) →
-                (∀ vs₁ vs₃ c₁ c₂ → R vs₁ (seq c₁ c₂) vs₃) →
-                (∀ vs₁ vs₃ e c   → R vs₁ (while e c) vs₃) →
+                (∀ {vs₁ vs₂ v e} → R vs₁ (assign v e) vs₂ →
+                 set vs₁ v (evalExp vs₁ e) ≡ vs₂) →
+                (∀ {vs₁ vs₃ c₁ c₂} → R vs₁ (seq c₁ c₂) vs₃ →
+                 ∃ (λ vs₂ → R vs₁ c₂ vs₂ ∧ R vs₂ c₂ vs₃)) →
+                (∀ {vs₁ vs₃ e c} → R vs₁ (while e c) vs₃ →
+                 (evalExp vs₁ e ≡ 0 ∧ vs₃ ≡ vs₁) ∨
+                 ∃ (λ vs₂ → evalExp vs₁ e ≢ 0 ∧ R vs₁ c vs₂ ∧
+                            R vs₂ (while e c) vs₃)) →
                 ∀ vs₁ c vs₂ → R vs₁ c vs₂ → EvalCmd vs₁ c vs₂
-evalCmd-coind R assc seqc whilec vs₁ (assign v e) vs₂ r = {!!}
+evalCmd-coind R assc seqc whilec vs₁ (assign v e) vs₂ r =
+    subst (EvalCmd vs₁ (assign v e)) (assc r) evalAssign
 evalCmd-coind R assc seqc whilec vs₁ (seq c₁ c₂)  vs₂ r = {!!}
 evalCmd-coind R assc seqc whilec vs₁ (while e c)  vs₂ r = {!!}
 
@@ -227,3 +233,4 @@ optCmd : Cmd → Cmd
 optCmd (assign v e) = assign v (optExp e)
 optCmd (seq c₁ c₂)  = seq (optCmd c₁) (optCmd c₂)
 optCmd (while e c)  = while (optExp e) (optCmd c)
+
