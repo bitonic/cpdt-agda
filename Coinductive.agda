@@ -11,6 +11,7 @@ open import Coinduction
 open import Data.Product using (_,_; proj₁; proj₂; ∃)
 import Data.Nat.Properties
 open Data.Nat.Properties.SemiringSolver
+open import Function
 
 open import Common
 
@@ -159,3 +160,27 @@ fact-eq′ n = stream-=-coind R hd-case tl-case
                    ∎) ,
         cong tl r₂
 
+fact-eq : Stream-= fact-iter fact-slow
+fact-eq = fact-eq′ 1
+
+stream-=-onequant : (A B : Set)
+                    (f g : A → Stream B) →
+                    (∀ x → hd (f x) ≡ hd (g x)) →
+                    (∀ x → ∃ (λ y → tl (f x) ≡ f y ∧ tl (g x) ≡ g y)) →
+                    ∀ x → Stream-= (f x) (g x)
+stream-=-onequant A B f g bhd btl x =
+    stream-=-coind R hd-case tl-case (f x) (g x) (x , refl , refl)
+  where
+    R : Stream _ → Stream _ → Set
+    R s₁ s₂ = ∃ (λ x → s₁ ≡ f x ∧ s₂ ≡ g x)
+
+    hd-case : ∀ {s₁ s₂} → R s₁ s₂ → hd s₁ ≡ hd s₂
+    hd-case {s₁} {s₂} (x , r₁ , r₂) = begin hd s₁    ≡⟨ cong hd r₁ ⟩
+                                            hd (f x) ≡⟨ bhd x ⟩
+                                            hd (g x) ≡⟨ cong hd (sym r₂) ⟩
+                                            hd s₂    ∎
+
+    tl-case : ∀ {s₁ s₂} → R s₁ s₂ → R (tl s₁) (tl s₂)
+    tl-case {s₁} {s₂} (x , r₁ , r₂) =
+        let (y , p , q) = btl x in
+        y , trans (cong tl r₁) p , trans (cong tl r₂) q
