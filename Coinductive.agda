@@ -1,77 +1,72 @@
-{-# OPTIONS --copatterns #-}
 module Coinductive where
 
 open import Relation.Binary.PropositionalEquality
             using (refl; _≡_; cong; sym; trans; subst)
 open Relation.Binary.PropositionalEquality.≡-Reasoning
 open import Data.Nat using (ℕ; zero; suc; _*_; _+_)
-open import Data.Bool using (Bool; true; false)
+open import Data.Bool using (Bool; true; false; if_then_else_)
 open import Data.List using (List; _∷_; [])
 open import Coinduction
 open import Data.Product using (_,_; proj₁; proj₂; ∃)
 import Data.Nat.Properties
 open Data.Nat.Properties.SemiringSolver
-open import Function
+open import Function using (_∘_)
+open import Relation.Nullary.Decidable using (⌊_⌋)
 
 open import Common
 
-record Stream (A : Set) : Set where
-  coinductive
-  field hd : A
-        tl : Stream A
-open Stream
+-- TODO rewrite the proofs more nicely without the combinators
+
+data Stream (A : Set) : Set where
+  _∷_ : (x : A) (xs : ∞ (Stream A)) → Stream A
 
 zeroes : Stream ℕ
-hd zeroes = 0
-tl zeroes = zeroes
+zeroes = 0 ∷ ♯ zeroes
 
 trues-falses : Stream Bool
-hd trues-falses      = true
-hd (tl trues-falses) = false
-tl (tl trues-falses) = trues-falses
+trues-falses      = true ∷ ♯ (false ∷ ♯ trues-falses)
 
 approx : ∀ {A} → Stream A → ℕ → List A
-approx s zero    = []
-approx s (suc n) = hd s ∷ approx (tl s) n
+approx s       zero    = []
+approx (x ∷ s) (suc n) = x ∷ approx (♭ s) n
 
 map : ∀ {A B} → (A → B) → Stream A → Stream B
-hd (map f s) = f (hd s)
-tl (map f s) = map f (tl s)
+map f (x ∷ s) = f x ∷ ♯ map f (♭ s)
 
 interleave : ∀ {A} → Stream A → Stream A → Stream A
-hd (interleave xs ys)      = hd xs
-hd (tl (interleave xs ys)) = hd ys
-tl (tl (interleave xs ys)) = interleave (tl xs) (tl ys)
+interleave (h₁ ∷ s₁) (h₂ ∷ s₂) = h₁ ∷ ♯ (h₂ ∷ ♯ interleave (♭ s₁) (♭ s₂))
+
+tl : ∀ {A} → Stream A → Stream A
+tl (_ ∷ xs) = ♭ xs
 
 ones : Stream ℕ
-hd ones = 1
-tl ones = ones
+ones = 1 ∷ ♯ ones
 
 ones′ : Stream ℕ
 ones′ = map suc zeroes
 
--- -- Not going to work
--- -- ones-= : ones ≡ ones′
--- -- ones-= = {!!}
+-- Not going to work
+-- ones-= : ones ≡ ones′
+-- ones-= = {!!}
 
-record Stream-= {A : Set} (xs : Stream A) (ys : Stream A) : Set where
-  coinductive
-  field
-    hd=hd : hd xs ≡ hd ys
-    tl=tl : Stream-= (tl xs) (tl ys)
-open Stream-=
+
+data Stream-= {A} : Stream A → Stream A → Set where
+  stream-= : ∀ h {t₁ t₂} → ∞ (Stream-= (♭ t₁) (♭ t₂)) → Stream-= (h ∷ t₁) (h ∷ t₂)
 
 ones-= : Stream-= ones ones′
-hd=hd ones-= = refl
-tl=tl ones-= = ones-=
+ones-= = stream-= 1 (♯ ones-=)
+
+hd : ∀ {A} → Stream A → A
+hd (x ∷ _) = x
 
 -- Bisimulation
 stream-=-coind : ∀ {A} (R : Stream A → Stream A → Set) →
                  (∀ {s₁ s₂} → R s₁ s₂ → hd s₁ ≡ hd s₂) →
                  (∀ {s₁ s₂} → R s₁ s₂ → R (tl s₁) (tl s₂)) →
                  ∀ s₁ s₂ → R s₁ s₂ → Stream-= s₁ s₂
-hd=hd (stream-=-coind R f g s₁ s₂ p) = f p
-tl=tl (stream-=-coind R f g s₁ s₂ p) = stream-=-coind R f g (tl s₁) (tl s₂) (g p)
+stream-=-coind R f g (h₁ ∷ t₁) ( h₂ ∷ t₂) p with f p
+stream-=-coind R f g (h₁ ∷ t₁) (.h₁ ∷ t₂) p | refl =
+    stream-= h₁ (♯ stream-=-coind R f g (♭ t₁) (♭ t₂) (g p))
 
 ones-=′ : Stream-= ones ones′
 ones-=′ = stream-=-coind (λ s₁ s₂ → s₁ ≡ ones ∧ s₂ ≡ ones′)
@@ -82,19 +77,7 @@ ones-=′ = stream-=-coind (λ s₁ s₂ → s₁ ≡ ones ∧ s₂ ≡ ones′)
 stream-=-loop : ∀ {A} (s₁ s₂ : Stream A) →
                 hd s₁ ≡ hd s₂ → tl s₁ ≡ s₁ → tl s₂ ≡ s₂ →
                 Stream-= s₁ s₂
-hd=hd (stream-=-loop s₁ s₂ p q s) = p
-tl=tl (stream-=-loop s₁ s₂ p q s) =
-  stream-=-loop (tl s₁) (tl s₂)
-                (begin hd (tl s₁) ≡⟨ trans (cong hd q) p ⟩
-                       hd s₂      ≡⟨ cong hd (sym s) ⟩
-                       hd (tl s₂) ∎)
-                (cong tl q) (cong tl s)
-
--- Just using `stream-=-loop' 
-stream-=-loop′ : ∀ {A} (s₁ s₂ : Stream A) →
-                 hd s₁ ≡ hd s₂ → tl s₁ ≡ s₁ → tl s₂ ≡ s₂ →
-                 Stream-= s₁ s₂
-stream-=-loop′ s₁ s₂ p q s =
+stream-=-loop s₁ s₂ p q s =
     stream-=-coind R hd-case
                    (λ {(r₁ , r₂) → trans (cong tl r₁) q , trans (cong tl r₂) s})
                    s₁ s₂ (refl , refl)
@@ -115,15 +98,13 @@ fact zero    = 1
 fact (suc n) = suc n * fact n
 
 fact-slow′ : ℕ → Stream ℕ
-hd (fact-slow′ n) = fact n
-tl (fact-slow′ n) = fact-slow′ (suc n)
+fact-slow′ n = fact n ∷ ♯ fact-slow′ (suc n)
 
 fact-slow : Stream ℕ
 fact-slow = fact-slow′ 1
 
 fact-iter′ : ℕ → ℕ → Stream ℕ
-hd (fact-iter′ cur acc) = acc
-tl (fact-iter′ cur acc) = fact-iter′ (suc cur) (acc * cur)
+fact-iter′ cur acc = acc ∷ ♯ fact-iter′ (suc cur) (acc * cur)
 
 fact-iter : Stream ℕ
 fact-iter = fact-iter′ 2 1
@@ -134,7 +115,6 @@ fact-suc n = solve 2 (λ n m → n :* :suc m := n :+ m :* n) refl (fact n) n
 fact-def : ∀ x n → fact-iter′ x (fact n * suc n) ≡ fact-iter′ x (fact (suc n))
 fact-def x n = cong (fact-iter′ x) (fact-suc n)
 
--- TODO try to do this with copatterns
 fact-eq′ : ∀ n → Stream-= (fact-iter′ (suc n) (fact n)) (fact-slow′ n)
 fact-eq′ n = stream-=-coind R hd-case tl-case
                             (fact-iter′ (suc n) (fact n)) (fact-slow′ n)
@@ -184,3 +164,28 @@ stream-=-onequant A B f g bhd btl x =
     tl-case {s₁} {s₂} (x , r₁ , r₂) =
         let (y , p , q) = btl x in
         y , trans (cong tl r₁) p , trans (cong tl r₂) q
+
+Var : Set
+Var = ℕ
+
+Vars : Set
+Vars = Var → Var
+
+-- Set is taken...
+Set′ : Vars → Var → ℕ → Vars
+Set′ vs v n v′ = if ⌊ v ≟ v′ ⌋ then n else vs v′ where open Data.Nat
+
+data Exp : Set where
+  const : ℕ         → Exp
+  var   : Var       → Exp
+  plus  : Exp → Exp → Exp
+
+evalExp : Vars → Exp → ℕ
+evalExp vs (const n)    = n
+evalExp vs (var v)      = vs v
+evalExp vs (plus e₁ e₂) = evalExp vs e₁ + evalExp vs e₂
+
+data Cmd : Set where
+  assign : Var → Exp → Cmd
+  seq    : Cmd → Cmd → Cmd
+  While  : Exp → Cmd → Cmd
