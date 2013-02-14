@@ -187,11 +187,11 @@ module NestedTree where
     node : ℕ → List Tree → Tree
 
   all : {A : Set} (P : A → Set) → List A → Set
-  all P [] = ⊤
+  all P []       = ⊤
   all P (x ∷ xs) = P x ∧ all P xs
 
   Tree-ind : (P : Tree → Set) →
-             (∀ n ls → all P ls → P (node n ls) ) →
+             (∀ n ls → all P ls → P (node n ls)) →
              ∀ tr → P tr
   Tree-ind P ind (node n trs′) = ind n trs′ (trsAll trs′)
     where trsAll : (trs : List Tree) → all P trs

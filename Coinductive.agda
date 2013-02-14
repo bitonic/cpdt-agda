@@ -234,3 +234,4 @@ optCmd (assign v e) = assign v (optExp e)
 optCmd (seq c₁ c₂)  = seq (optCmd c₁) (optCmd c₂)
 optCmd (while e c)  = while (optExp e) (optCmd c)
 
+-- TODO: Finish
