@@ -67,11 +67,11 @@ module FirstOrder where
   postulate ext : ∀ {A B : Set} {f g : A → B} → ((x : A) → f x ≡ g x) → f ≡ g
 
   cfold′ : ∀ {Γ σ} → (t : Term Γ σ) → Σ[ t′ ∈ Term Γ σ ] (∀ {c} → c [ t ] ≡ c [ t′ ])
-  cfold′ (var v) = var v , refl
-  cfold′ (const n) = const n , refl
-  cfold′ (app t₁ t₂) = let t₁′ , p = cfold′ t₁; t₂′ , q = cfold′ t₂
-                       in app t₁′ t₂′ , cong₂ _$_ p q
-  cfold′ (abs t) = let t′ , p = cfold′ t in abs t′ , ext (λ x → p)
+  cfold′ (var v)      = var v , refl
+  cfold′ (const n)    = const n , refl
+  cfold′ (app t₁ t₂)  = let t₁′ , p = cfold′ t₁; t₂′ , q = cfold′ t₂
+                        in app t₁′ t₂′ , cong₂ _$_ p q
+  cfold′ (abs t)      = let t′ , p = cfold′ t in abs t′ , ext (λ x → p)
   cfold′ (let′ t₁ t₂) =
     let t₁′ , p = cfold′ t₁; t₂′ , q = cfold′ t₂
     in let′ t₁′ t₂′ ,
