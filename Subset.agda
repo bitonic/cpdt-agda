@@ -60,4 +60,3 @@ data Maybe (A : Set) (P : A → Set) : Set where
   Unknown : Maybe A P
   Found   : {x : A} → P x → Maybe A P
 
-
