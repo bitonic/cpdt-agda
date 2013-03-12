@@ -64,15 +64,25 @@ module FirstOrder where
   identSound (app t₁ t₂)  = cong₂ app  (identSound t₁) (identSound t₂)
   identSound (let′ t₁ t₂) = cong₂ let′ (identSound t₁) (identSound t₂)
 
-  cfold : ∀ {Γ σ} → Term Γ σ → Term Γ σ
-  cfold (var v) = var v
-  cfold (const n) = const n
-  cfold (app t₁ t₂)  = app (cfold t₁) (cfold t₂)
-  cfold (abs t) = abs (cfold t)
-  cfold (let′ t₁ t₂) = let′ (cfold t₁) (cfold t₂)
-  cfold (plus t₁ t₂) with cfold t₁ | cfold t₂
-  ... | const n₁ | const n₂ = const (n₁ + n₂)
-  ... | t₁′      | t₂′      = plus t₁′ t₂′
+  postulate ext : ∀ {A B : Set} {f g : A → B} → ((x : A) → f x ≡ g x) → f ≡ g
 
-  cfoldSound : ∀ {Γ σ c} → (t : Term Γ σ) → c [ t ] ≡ c [ cfold t ]
-  cfoldSound = {!!}
+  cfold′ : ∀ {Γ σ} → (t : Term Γ σ) → Σ[ t′ ∈ Term Γ σ ] (∀ {c} → c [ t ] ≡ c [ t′ ])
+  cfold′ (var v) = var v , refl
+  cfold′ (const n) = const n , refl
+  cfold′ (app t₁ t₂) = let t₁′ , p = cfold′ t₁; t₂′ , q = cfold′ t₂
+                       in app t₁′ t₂′ , cong₂ _$_ p q
+  cfold′ (abs t) = let t′ , p = cfold′ t in abs t′ , ext (λ x → p)
+  cfold′ (let′ t₁ t₂) =
+    let t₁′ , p = cfold′ t₁; t₂′ , q = cfold′ t₂
+    in let′ t₁′ t₂′ ,
+       λ {c} → subst (λ ct₁ → ((c [ t₁ ]) ∷ c) [ t₂ ] ≡ (ct₁ ∷ c) [ t₂′ ]) p q
+  cfold′ (plus t₁ t₂) with cfold′ t₁ | cfold′ t₂
+  ... | const n₁ , p | const n₂ , q = const (n₁ + n₂) , cong₂ _+_ p q
+  ... | t₁′      , p | t₂′      , q = plus t₁′ t₂′    , cong₂ _+_ p q
+
+  cfold : ∀ {Γ σ} → Term Γ σ → Term Γ σ
+  cfold = proj₁ ∘ cfold′
+
+  cfoldSound : ∀ {Γ σ} → (t : Term Γ σ) → ∀ {c} → c [ t ] ≡ c [ cfold t ]
+  cfoldSound = proj₂ ∘ cfold′ 
+
