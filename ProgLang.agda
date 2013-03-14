@@ -125,3 +125,36 @@ module FirstOrder where
   insertAtS             x zero    s       = x ∷ s
   insertAtS {Γ = []}    x (suc n) s       = x ∷ s
   insertAtS {Γ = σ ∷ Γ} x (suc n) (y ∷ s) = y ∷ insertAtS x n s
+
+  liftVarSound : ∀ {τ} (x : ⟦ τ ⟧) {σ Γ} (m : σ ∈ Γ) s n →
+                 lookup m s ≡ lookup (liftVar m τ n) (insertAtS x n s)
+  liftVarSound x here        _       zero    = refl
+  liftVarSound x here        (_ ∷ _) (suc _) = refl
+  liftVarSound _ (there _ _) (_ ∷ _) zero    = refl
+  liftVarSound x (there y m) (_ ∷ _) (suc n) = liftVarSound x m _ n
+
+  lift′Sound : ∀ {Γ τ} (x : ⟦ τ ⟧) {σ} (t : Term Γ σ) n s →
+               s [ t ] ≡ insertAtS x n s [ lift′ n t ]
+  lift′Sound x (var v) n s = liftVarSound x v s n
+  lift′Sound x (const i) _ _ = refl
+  lift′Sound x (plus t₁ t₂) n s =
+    cong₂ _+_ (lift′Sound x t₁ n s) (lift′Sound x t₂ n s)
+  lift′Sound x (abs t) n s = ext (λ y → lift′Sound x t (suc n) (y ∷ s))
+  lift′Sound x (app t₁ t₂) n s = cong₂ _$_ (lift′Sound x t₁ n s) (lift′Sound x t₂ n s)
+  lift′Sound x (let′ t₁ t₂) n s with lift′Sound x t₁ n s
+  lift′Sound x (let′ t₁ t₂) n s | p =
+    subst (λ st₁ → ((s [ t₁ ]) ∷ s) [ t₂ ] ≡
+           (st₁ ∷ insertAtS x n s) [ lift′ (suc n) t₂ ])
+          p (lift′Sound x t₂ (suc n) ((s [ t₁ ]) ∷ s))
+
+  liftSound : ∀ {Γ τ} (x : ⟦ τ ⟧) {σ} (t : Term Γ σ) s → (x ∷ s) [ lift t ] ≡ s [ t ]
+  liftSound x t s = sym (lift′Sound x t 0 s)
+
+  unletSound′ : ∀ {Γ σ} (t : Term Γ σ) {Δ} (s : HList (Term Δ) Γ) {s′} →
+                s′ [ unlet t s ] ≡ (hmap (λ t′ → s′ [ t′ ]) s) [ t ]
+  unletSound′ (var v) s = {!!}
+  unletSound′ (const n) s = refl
+  unletSound′ (plus t₁ t₂) s = cong₂ _+_ (unletSound′ t₁ s) (unletSound′ t₂ s)
+  unletSound′ (abs t) s = ext (λ x → {!!})
+  unletSound′ (app t₁ t₂) s = cong₂ _$_ (unletSound′ t₁ s) (unletSound′ t₂ s)
+  unletSound′ (let′ t₁ t₂) s = {!!}
