@@ -12,4 +12,6 @@ module README where
 import StackMachine
 import InductiveTypes
 import Predicates
-import Coinductive
+-- import Coinductive
+import Subset
+import ProgLang
