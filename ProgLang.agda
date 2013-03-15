@@ -37,12 +37,24 @@ module FirstOrder where
     let′  : ∀ {Γ σ τ} → Term Γ σ       → Term (σ ∷ Γ) τ → Term Γ τ
 
   lookup : ∀ {A} {x : A} → ∀ {xs f} → x ∈ xs → HList f xs → f x
-  lookup here            (x ∷ _)       = x
-  lookup (there .x x∈xs) (_∷_ {x} y l) = lookup x∈xs l
+  lookup here           (x ∷ _)        = x
+  lookup (there x x∈xs) (_∷_ {.x} _ l) = lookup x∈xs l
 
   hmap : ∀ {A F xs} {G : A → Set} → (∀ {x} → F x → G x) → HList F xs → HList G xs
   hmap f []      = []
   hmap f (x ∷ l) = f x ∷ hmap f l
+
+  hmap-hmap : ∀ {A F xs} {l : HList F xs} {G H : A → Set}
+              {f : ∀ {x} → G x → H x} {g : ∀ {x} → F x → G x} →
+              hmap f (hmap g l) ≡ hmap (f ∘ g) l
+  hmap-hmap {l = []}    = refl
+  hmap-hmap {l = x ∷ l} = cong₂ _∷_ refl hmap-hmap
+
+  hmap-≡ : ∀ {A F xs} {l : HList F xs} {G : A → Set}
+           {f g : ∀ {x} → F x → G x} → (∀ {x} → (y : F x) → f y ≡ g y) →
+           hmap f l ≡ hmap g l
+  hmap-≡ {l = []}    _ = refl
+  hmap-≡ {l = x ∷ l} p = cong₂ _∷_ (p x) (hmap-≡ p)
 
   _[_] : ∀ {Γ σ} → HList ⟦_⟧ Γ → Term Γ σ → ⟦ σ ⟧
   ctx [ var x      ] = lookup x ctx
@@ -141,20 +153,33 @@ module FirstOrder where
     cong₂ _+_ (lift′Sound x t₁ n s) (lift′Sound x t₂ n s)
   lift′Sound x (abs t) n s = ext (λ y → lift′Sound x t (suc n) (y ∷ s))
   lift′Sound x (app t₁ t₂) n s = cong₂ _$_ (lift′Sound x t₁ n s) (lift′Sound x t₂ n s)
-  lift′Sound x (let′ t₁ t₂) n s with lift′Sound x t₁ n s
-  lift′Sound x (let′ t₁ t₂) n s | p =
+  lift′Sound x (let′ t₁ t₂) n s =
     subst (λ st₁ → ((s [ t₁ ]) ∷ s) [ t₂ ] ≡
            (st₁ ∷ insertAtS x n s) [ lift′ (suc n) t₂ ])
-          p (lift′Sound x t₂ (suc n) ((s [ t₁ ]) ∷ s))
+          (lift′Sound x t₁ n s)
+          (lift′Sound x t₂ (suc n) ((s [ t₁ ]) ∷ s))
 
-  liftSound : ∀ {Γ τ} (x : ⟦ τ ⟧) {σ} (t : Term Γ σ) s → (x ∷ s) [ lift t ] ≡ s [ t ]
-  liftSound x t s = sym (lift′Sound x t 0 s)
+  liftSound : ∀ {Γ τ} {x : ⟦ τ ⟧} {σ} (t : Term Γ σ) {s} → (x ∷ s) [ lift t ] ≡ s [ t ]
+  liftSound t = sym (lift′Sound _ t 0 _)
 
   unletSound′ : ∀ {Γ σ} (t : Term Γ σ) {Δ} (s : HList (Term Δ) Γ) {s′} →
-                s′ [ unlet t s ] ≡ (hmap (λ t′ → s′ [ t′ ]) s) [ t ]
-  unletSound′ (var v) s = {!!}
+                s′ [ unlet t s ] ≡ hmap (λ t′ → s′ [ t′ ]) s [ t ]
+  unletSound′ (var ()) []
+  unletSound′ (var here) (_ ∷ _) = refl
+  unletSound′ (var (there _ v)) (_ ∷ s) = unletSound′ (var v) s
   unletSound′ (const n) s = refl
   unletSound′ (plus t₁ t₂) s = cong₂ _+_ (unletSound′ t₁ s) (unletSound′ t₂ s)
-  unletSound′ (abs t) s = ext (λ x → {!!})
+  unletSound′ (abs t) s {s′} =
+    ext (λ x → trans (unletSound′ t (var here ∷ hmap lift s))
+                     (cong (λ l → (x ∷ l) [ t ])
+                           (trans hmap-hmap (hmap-≡ (λ t′ → liftSound t′)))))
   unletSound′ (app t₁ t₂) s = cong₂ _$_ (unletSound′ t₁ s) (unletSound′ t₂ s)
-  unletSound′ (let′ t₁ t₂) s = {!!}
+  unletSound′ (let′ t₁ t₂) s {s′} =
+    subst (λ ht₁ →
+           s′ [ unlet t₂ (unlet t₁ s ∷ s) ] ≡ (ht₁ ∷ hmap (λ t′ → s′ [ t′ ]) s) [ t₂ ])
+          (unletSound′ t₁ s)
+          (unletSound′ t₂ (unlet t₁ s ∷ s))
+
+  unletSound : ∀ {σ} → (t : Term [] σ) → [] [ unlet t [] ] ≡ [] [ t ]
+  unletSound t = unletSound′ t []
+
